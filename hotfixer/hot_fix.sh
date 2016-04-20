@@ -31,6 +31,7 @@ else
     cd ${patch_dir}
     prefix=${patch_prefix}
 fi
+echo_green "running patch command at `pwd`"
 echo_green "sudo patch -fN -p${prefix} < /tmp/$$.patch"
 sudo patch --dry-run -fN -p${prefix} < /tmp/$$.patch
 if [ $? -eq 1 ]; then
