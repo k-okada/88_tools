@@ -22,33 +22,39 @@ wget -O /tmp/$$.patch -q --no-check-certificate https://github.com/${patch_repo}
 echo -e "\e[33m"
 cat /tmp/$$.patch
 echo -e "\e[0m"
+csplit -q -z /tmp/$$.patch --prefix /tmp/${patch_no}_$$_ --suffix-format='%02d.patch' '/^diff/' {*}
 # theck if this is python module
-sed -n '/diff --git a\/\(.*\)\/src\/\1\/.*\.py/{q1}' /tmp/$$.patch
-if [ $? -eq 1 ]; then
-    cd /opt/ros/indigo/lib/python2.7/dist-packages
-    prefix=3
-else
-    cd ${patch_dir}
-    prefix=${patch_prefix}
-fi
-echo_green "running patch command at `pwd`"
-echo_green "sudo patch -fN -p${prefix} < /tmp/$$.patch"
-sudo patch --dry-run -fN -p${prefix} < /tmp/$$.patch
-if [ $? -eq 1 ]; then
-    sudo patch --dry-run -R -fN -p${prefix} < /tmp/$$.patch
+for patch_file in /tmp/${patch_no}_$$_*.patch ; do
+    echo -e "\e[31mApply ${patch_file}\e[33m"
+    cat ${patch_file}
+    echo -e "\e[0m"
+    sed -n '/diff --git a\/\(.*\)\/src\/\1\/.*\.py/{q1}' ${patch_file}
     if [ $? -eq 1 ]; then
-	echo_red "ERROR: failed to patch"
+        cd /opt/ros/indigo/lib/python2.7/dist-packages
+        prefix=3
     else
-	echo_green "This patch is already applied"
+        cd ${patch_dir}
+        prefix=${patch_prefix}
     fi
-    exit
-fi
-read -p "Do you wish to apply ${patch_no}.patch [y/N]? " yn
-case $yn in
-    [Yy]* ) ;;
-        * ) echo_red "ABORTED"; exit;;
-esac
+    echo_green "running patch command at `pwd`"
+    echo_green "sudo patch -fN -p${prefix} < ${patch_file}"
+    sudo patch --dry-run -fN -p${prefix} < ${patch_file}
+    if [ $? -eq 1 ]; then
+        sudo patch --dry-run -R -fN -p${prefix} < ${patch_file}
+        if [ $? -eq 1 ]; then
+	    echo_red "ERROR: failed to patch"
+        else
+	    echo_green "This patch is already applied"
+        fi
+        exit
+    fi
+    read -p "Do you wish to apply ${patch_no}.patch [y/N]? " yn
+    case $yn in
+        [Yy]* ) ;;
+        * ) echo_red "ABORTED"; continue;;
+    esac
 
-sudo patch -fN -p${prefix} < /tmp/$$.patch
-echo_green "DONE";
+    sudo patch -fN -p${prefix} < ${patch_file}
+    echo_green "DONE";
+done
 #https://github.com/start-jsk/rtmros_hironx/pull/318
